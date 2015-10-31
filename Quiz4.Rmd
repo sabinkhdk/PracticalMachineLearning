@@ -1,0 +1,135 @@
+---
+title: "Quiz 4"
+author: "Sabin Khadka"
+date: "October 26, 2015"
+output: html_document
+---
+
+## Question 1
+
+Load the vowel.train and vowel.test data sets:
+library(ElemStatLearn)
+data(vowel.train)
+data(vowel.test) 
+Set the variable y to be a factor variable in both the training and test set. Then set the seed to 33833. Fit (1) a random forest predictor relating the factor variable y to the remaining variables and (2) a boosted predictor using the "gbm" method. Fit these both with the train() command in the caret package. 
+
+What are the accuracies for the two approaches on the test data set? What is the accuracy among the test set samples where the two methods agree?
+
+```{r, echo=FALSE}
+library(ElemStatLearn)
+library(caret)
+library(gbm)
+data(vowel.train)
+data(vowel.test)
+vowel.train$y <- as.factor(vowel.train$y)
+vowel.test$y  <- as.factor(vowel.test$y)
+set.seed(33833)
+fit1 <- suppressMessages(train(y~., data=vowel.train, method="rf"))
+fit2 <- suppressMessages(train(y~., data=vowel.train, method="gbm"))
+pred1 <- suppressMessages(predict(fit1, vowel.test))
+pred2 <- suppressMessages(predict(fit2, vowel.test))
+idx <- (pred1==pred2)
+```
+
+Overall accuracy using random forest: `r confusionMatrix(vowel.test$y, pred1)$overall['Accuracy']` 
+
+Overall accuracy using gbm: `r confusionMatrix(vowel.test$y, pred2)$overall['Accuracy']`
+
+Accuracy where two methods agree `r confusionMatrix(vowel.test$y[idx], pred2[idx])$overall['Accuracy']`
+
+## Quiz 2
+```{r}
+library(caret)
+library(gbm)
+set.seed(3433)
+library(AppliedPredictiveModeling)
+data(AlzheimerDisease)
+adData = data.frame(diagnosis,predictors)
+inTrain = createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+training = adData[ inTrain,]
+testing = adData[-inTrain,]
+```
+
+Set the seed to 62433 and predict diagnosis with all the other variables using a random forest ("rf"), boosted trees ("gbm") and linear discriminant analysis ("lda") model. Stack the predictions together using random forests ("rf"). What is the resulting accuracy on the test set? Is it better or worse than each of the individual predictions?
+
+```{r}
+set.seed(62433)
+fit3 <- suppressMessages(train(diagnosis ~ ., data=training, method="rf"))
+fit4 <- suppressMessages(train(diagnosis ~ ., data=training, method="gbm"))
+fit5 <- suppressMessages(train(diagnosis ~ ., data=training, method="lda"))
+pred3 <- suppressMessages(predict(fit3, testing))
+pred4 <- suppressMessages(predict(fit4, testing))
+pred5 <- suppressMessages(predict(fit5, testing))
+cdata <- data.frame(pred3, pred4, pred5, diagnosis=testing$diagnosis)
+cmodel <- train(diagnosis~., data=cdata, method="rf")
+cpred <- predict(cmodel, testing)
+```
+
+Accuracy from rf : `r confusionMatrix(testing$diagnosis, pred3)$overall['Accuracy']`
+
+Accuracy from gbm : `r confusionMatrix(testing$diagnosis, pred4)$overall['Accuracy']`
+
+Accuracy from lda : `r confusionMatrix(testing$diagnosis, pred5)$overall['Accuracy']`
+
+Accuracy from combined : `r confusionMatrix(testing$diagnosis, cpred)$overall['Accuracy']`
+
+## Question 3
+
+```{r}
+set.seed(3523)
+library(AppliedPredictiveModeling)
+data(concrete)
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+```
+
+Set the seed to 233 and fit a lasso model to predict Compressive Strength. Which variable is the last coefficient to be set to zero as the penalty increases? (Hint: it may be useful to look up ?plot.enet).
+
+```{r}
+library("elasticnet")
+set.seed(223)
+fit6 <- suppressMessages(train(CompressiveStrength ~., data=training, method = "lasso"))
+plot.enet(fit6$finalModel, xvar="penalty", use.color=TRUE)
+```
+
+## Question 4
+
+```{r}
+durl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/gaData.csv"
+if (!file.exists("gaData.csv")) {
+        download.file(durl, destfile = "gaData.csv", method = "curl")  
+}
+library(lubridate)  # For year() function below
+dat = read.csv("./gaData.csv")
+training = dat[year(dat$date) < 2012,]
+testing = dat[(year(dat$date)) > 2011,]
+tstrain = ts(training$visitsTumblr)
+library(forecast)
+model <- bats(tstrain)
+fcast <- forecast(model, level = 95, h = dim(testing)[1])
+sum(fcast$lower < testing$visitsTumblr & testing$visitsTumblr < fcast$upper) / 
+    dim(testing)[1]
+```
+
+## Question 5
+
+```{r}
+set.seed(3523)
+library(AppliedPredictiveModeling)
+data(concrete)
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+```
+
+Set the seed to 325 and fit a support vector machine using the e1071 package to predict Compressive Strength using the default settings. Predict on the testing set. What is the RMSE?
+
+```{r}
+set.seed(325)
+library(e1071)
+fit6 <- svm(CompressiveStrength ~ ., data = training)
+pred6 <- predict(fit6, testing)
+```
+
+for RMSE `r accuracy(pred6, testing$CompressiveStrength)`
